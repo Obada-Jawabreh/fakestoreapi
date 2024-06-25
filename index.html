@@ -25,24 +25,22 @@
 
     <!-- Main Content -->
     <main class="container">
-         <section class="products">
+        <section class="products">
             <h2>Our Products</h2>
-
-            <div id="product-grid">
-
-            </div>
+            <div id="product-grid"></div>
         </section>
     </main>
-<main class="main">
-    <form id="post-form">
-        <input type="text" id="title" placeholder="Title" required>
-        <input type="text" id="price" placeholder="Price" required>
-        <textarea id="description" placeholder="Description" required></textarea>
-        <input type="url" id="image" placeholder="Image URL" required>
-        <button type="submit">Create Post</button>
-    </form>
-    <div id="products-container"></div>
-</main>
+
+    <main class="main">
+        <form id="post-form">
+            <input type="text" id="title1" placeholder="Title" required>
+            <input type="number" id="price1" placeholder="Price" required>
+            <textarea id="description1" placeholder="Description" required></textarea>
+            <input type="url" id="image1" placeholder="Image URL" required>
+            <button type="submit">Create Post</button>
+        </form>
+        <div id="products-container"></div>
+    </main>
 
     <!-- Footer -->
     <footer>
@@ -50,102 +48,171 @@
             <p>&copy; 2024 My E-Commerce Store. All rights reserved.</p>
         </div>
     </footer>
-    <script src="app.js"></script>
+
     <script type="module">
-        // Import the functions you need from the SDKs you need
+        // Firebase initialization and database reference
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getDatabase, ref, push, onChildAdded, update, remove } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-        
-        // Your web app's Firebase configuration
+        import { getDatabase, ref, push, onValue, set, update, remove } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
         const firebaseConfig = {
-            apiKey: "AIzaSyBj8BZ-Sc2Yue7Z7_FkOOdt5aCg4apmqrg",
-            authDomain: "test-debaf.firebaseapp.com",
-            databaseURL: "https://test-debaf-default-rtdb.europe-west1.firebasedatabase.app",
-            projectId: "test-debaf",
-            storageBucket: "test-debaf.appspot.com",
-            messagingSenderId: "807499809995",
-            appId: "1:807499809995:web:1cbf6a30da110dabee074e",
-            measurementId: "G-FWCFVB8PDW"
-        };
-        
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
+    apiKey: "AIzaSyABCY5aveo2RHEB2u2ttHIINGnIrVW05Ag",
+    authDomain: "newtask-885cc.firebaseapp.com",
+    databaseURL: "https://newtask-885cc-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "newtask-885cc",
+    storageBucket: "newtask-885cc.appspot.com",
+    messagingSenderId: "700192700334",
+    appId: "1:700192700334:web:63e6b6bca2b736b1653a3f"
+  };
+
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
+        const postsRef = ref(db, 'posts');
 
-        class Product {
-            constructor(title, price, description, image) {
-                this.title = title;
-                this.price = price;
-                this.description = description;
-                this.image = image;
-            }
-        }
-
+        // References
         const postForm = document.getElementById('post-form');
         const productsContainer = document.getElementById('products-container');
+        const productGrid = document.getElementById('product-grid');
 
-        postForm.addEventListener('submit', (e) => {
+        // Add a new document with a generated id.
+        postForm.addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            const title = document.getElementById('title').value;
-            const price = document.getElementById('price').value;
-            const description = document.getElementById('description').value;
-            const image = document.getElementById('image').value;
+            const title = document.getElementById('title1').value;
+            const price = document.getElementById('price1').value;
+            const description = document.getElementById('description1').value;
+            const image = document.getElementById('image1').value;
 
-            const newProduct = new Product(title, price, description, image);
-
-            // Add product to Firebase
-            const productsRef = ref(db, 'products');
-            push(productsRef, newProduct);
+            try {
+                const newPostRef = push(postsRef);
+                await set(newPostRef, {
+                    title,
+                    price,
+                    description,
+                    image
+                });
+                postForm.reset();
+                displayProducts();
+            } catch (e) {
+                console.error("Error adding document: ", e);
+            }
         });
 
-        function displayProduct(id, product) {
-            const productCard = document.createElement('div');
-            productCard.classList.add('product-card');
-            productCard.setAttribute('data-id', id);
-
-            productCard.innerHTML = `
-                <h2>${product.title}</h2>
-                <p>${product.price}</p>
-                <p>${product.description}</p>
-                <img src="${product.image}" alt="${product.title}">
-                <button class="update">Update</button>
-                <button class="delete">Delete</button>
-            `;
-
-            productsContainer.appendChild(productCard);
-
-            // Add event listeners to buttons
-            productCard.querySelector('.update').addEventListener('click', () => updateProduct(id, product));
-            productCard.querySelector('.delete').addEventListener('click', () => deleteProduct(id));
-        }
-
-        function updateProduct(id, product) {
-            const updatedTitle = prompt('Enter new title', product.title);
-            const updatedPrice = prompt('Enter new price', product.price);
-            const updatedDescription = prompt('Enter new description', product.description);
-            const updatedImage = prompt('Enter new image URL', product.image);
-
-            const productRef = ref(db, 'products/' + id);
-            update(productRef, {
-                title: updatedTitle,
-                price: updatedPrice,
-                description: updatedDescription,
-                image: updatedImage
+        // Display products
+        function displayProducts() {
+            productsContainer.innerHTML = '';
+            productGrid.innerHTML = '';
+            onValue(postsRef, (snapshot) => {
+                snapshot.forEach((childSnapshot) => {
+                    const product = childSnapshot.val();
+                    const productId = childSnapshot.key;
+                    createProductCard(product, productId);
+                });
+            }, {
+                onlyOnce: true
             });
         }
 
-        function deleteProduct(id) {
-            const productRef = ref(db, 'products/' + id);
-            remove(productRef);
-            document.querySelector(`[data-id="${id}"]`).remove();
+        // Create product card
+        function createProductCard(product, productId) {
+            const productCard = document.createElement('div');
+            productCard.classList.add('product-card');
+            productCard.innerHTML = `
+                <img src="${product.image}" alt="${product.title}">
+                <h3>${product.title}</h3>
+                <p>${product.description}</p>
+                <p>$${product.price}</p>
+                <button onclick="updateProduct('${productId}')">Update</button>
+                <button onclick="deleteProduct('${productId}')">Delete</button>
+            `;
+            productsContainer.appendChild(productCard);
+            productGrid.appendChild(productCard);
         }
 
-        // Fetch and display products from Firebase
-        const productsRef = ref(db, 'products');
-        onChildAdded(productsRef, (snapshot) => {
-            displayProduct(snapshot.key, snapshot.val());
-        });
-        </script>
+        // Update product
+        window.updateProduct = function (productId) {
+            const newTitle = prompt("Enter new title:");
+            const newPrice = prompt("Enter new price:");
+            const newDescription = prompt("Enter new description:");
+            const newImage = prompt("Enter new image URL:");
+
+            const productRef = ref(db, `posts/${productId}`);
+            update(productRef, {
+                title: newTitle,
+                price: newPrice,
+                description: newDescription,
+                image: newImage
+            }).then(() => {
+                displayProducts();
+            }).catch((e) => {
+                console.error("Error updating document: ", e);
+            });
+        }
+
+        // Delete product
+        window.deleteProduct = function (productId) {
+            const productRef = ref(db, `posts/${productId}`);
+            remove(productRef).then(() => {
+                displayProducts();
+            }).catch((e) => {
+                console.error("Error deleting document: ", e);
+            });
+        }
+
+        // Initial call to display products
+        displayProducts();
+        function Product(title ,price,description,image){
+    this.title=title;
+    this.price=price;
+    this.description=description;
+    this.image=image;
+}
+async function render(){
+    let respons = await fetch("https://fakestoreapi.com/products?limit=20")
+    let vlues = await respons.json();
+    // console.log(vlues);
+    vlues.forEach(element => {
+        let title=element.title;
+        let price=element.price;
+        let description=element.description;
+        let image=element.image;
+        let product=new Product(title ,price,description,image);
+        console.log(product.image);
+        createCard(product);
+    });
+}
+render();
+function createCard(product){
+//    let v= document.getElementsByClassName('product-grid');
+   let v= document.getElementById('product-grid');
+
+   let div = document.createElement('div');
+   div.classList.add("product");
+   v.appendChild(div);
+
+   let i = document.createElement('img');
+   i.id='image';
+   i.setAttribute('src',product.image)
+//   or i.src=product.image
+//    i.style.width="50px";
+//    i.style.marginBottom="60px"
+   div.appendChild(i);
+
+   let t = document.createElement('h3');
+   t.id='title';
+   t.innerHTML=product.title;
+   div.appendChild(t);
+   
+   let d = document.createElement('p');
+   d.id='description';
+   d.innerHTML=product.description;
+   div.appendChild(d);
+
+   let p = document.createElement('p');
+   p.id='price';
+   p.innerHTML=product.price;
+   div.appendChild(p);
+}
+      </script>
 </body>
 </html>
